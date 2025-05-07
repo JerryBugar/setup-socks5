@@ -1,11 +1,15 @@
 #!/bin/bash
 
-echo "=== SOCKS5 Dante Installer (TCP+UDP + Domain Support) ==="
+echo "=== SOCKS5 Dante Installer (TCP+UDP + Domain Support + Multi-Port) ==="
 
 read -p "Masukkan domain kamu (contoh: socksjep.ct.ws): " DOMAIN
 read -p "Masukkan username SOCKS5: " SOCKS_USER
 read -sp "Masukkan password SOCKS5: " SOCKS_PASS
 echo ""
+read -p "Masukkan port (pisahkan dengan koma untuk multi-port, contoh: 1080,1081,1082): " PORTS
+
+# Konversi string port ke array
+IFS=',' read -r -a PORT_ARRAY <<< "$PORTS"
 
 # Install dante-server
 apt update
@@ -21,7 +25,17 @@ IFACE=$(ip route | grep default | awk '{print $5}')
 # Buat config danted
 cat > /etc/danted.conf <<EOF
 logoutput: syslog
-internal: $IFACE port = 1080
+EOF
+
+# Tambahkan konfigurasi untuk setiap port
+for PORT in "${PORT_ARRAY[@]}"; do
+  cat >> /etc/danted.conf <<EOF
+internal: $IFACE port = $PORT
+EOF
+done
+
+# Lanjutkan dengan konfigurasi umum
+cat >> /etc/danted.conf <<EOF
 external: $IFACE
 
 socksmethod: username
@@ -53,8 +67,10 @@ systemctl enable danted
 
 # Buka firewall port TCP/UDP (jika pakai ufw)
 if command -v ufw &> /dev/null; then
-    ufw allow 1080/tcp
-    ufw allow 1080/udp
+    for PORT in "${PORT_ARRAY[@]}"; do
+        ufw allow $PORT/tcp
+        ufw allow $PORT/udp
+    done
 fi
 
 # Validasi domain resolve ke IP VPS
@@ -74,7 +90,13 @@ fi
 echo ""
 echo "=== SOCKS5 Berhasil Dipasang! ==="
 echo "Domain  : $DOMAIN"
-echo "Port    : 1080"
+echo "Port    : $PORTS"
 echo "Username: $SOCKS_USER"
 echo "Password: $SOCKS_PASS"
-echo "Format  : $DOMAIN:1080:$SOCKS_USER:$SOCKS_PASS"
+
+# Tampilkan format untuk setiap port
+echo ""
+echo "=== Format Koneksi SOCKS5 ==="
+for PORT in "${PORT_ARRAY[@]}"; do
+    echo "$DOMAIN:$PORT:$SOCKS_USER:$SOCKS_PASS"
+done
