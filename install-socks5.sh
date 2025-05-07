@@ -35,6 +35,14 @@ client pass {
 socks pass {
     from: 0.0.0.0/0 to: 0.0.0.0/0
     command: connect bind udpassociate
+    protocol: tcp
+    log: connect disconnect error
+}
+
+socks pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+    command: udpassociate
+    protocol: udp
     log: connect disconnect error
 }
 EOF
